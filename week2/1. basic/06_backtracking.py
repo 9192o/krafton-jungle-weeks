@@ -157,7 +157,7 @@ def combinations(n: int, k: int) -> list:
             current_combination.append(num)
             backtrack(start=num + 1, current_combination=current_combination)
             current_combination.pop()
-        
+
         # ──────────────────────────────────────────────────────────────
         # [Level 3] 백트래킹 3단계
         # ──────────────────────────────────────────────────────────────
