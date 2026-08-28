@@ -48,7 +48,7 @@ def check_solution(problem_file):
     if not problem_path.exists():
         return False, f"❌ 파일을 찾을 수 없습니다: {problem_file}"
 
-    base_name = problem_file.replace('.py', '')
+    base_name = problem_file.replace(".py", "")
     output_file = SCRIPT_DIR / f"{base_name}_output.txt"
 
     if not output_file.exists():
@@ -56,7 +56,7 @@ def check_solution(problem_file):
 
     try:
         result = subprocess.run(
-            ['python3', str(problem_path)],
+            ["python3", str(problem_path)],
             capture_output=True,
             text=True,
             timeout=10,
@@ -68,12 +68,16 @@ def check_solution(problem_file):
 
         actual_output = result.stdout.strip()
 
-        with open(output_file, 'r', encoding='utf-8') as f:
+        with open(output_file, "r", encoding="utf-8") as f:
             expected_output = f.read().strip()
 
         # 공백 정규화 후 비교
-        actual_lines = [line.strip() for line in actual_output.split('\n') if line.strip()]
-        expected_lines = [line.strip() for line in expected_output.split('\n') if line.strip()]
+        actual_lines = [
+            line.strip() for line in actual_output.split("\n") if line.strip()
+        ]
+        expected_lines = [
+            line.strip() for line in expected_output.split("\n") if line.strip()
+        ]
 
         if actual_lines == expected_lines:
             return True, "✅ PASS - 정답입니다!"
@@ -155,15 +159,15 @@ def run_single(problem_file):
 
 def main():
     # 인자 없음 또는 --all 인 경우: 전체 채점
-    if len(sys.argv) < 2 or sys.argv[1] == '--all':
+    if len(sys.argv) < 2 or sys.argv[1] == "--all":
         sys.exit(run_all())
 
-    if sys.argv[1] in ('-h', '--help'):
+    if sys.argv[1] in ("-h", "--help"):
         print(__doc__)
         return
 
     sys.exit(run_single(sys.argv[1]))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
