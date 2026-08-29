@@ -68,7 +68,25 @@ def n_queens(n: int) -> int:
     #       ...
     #   place(0)
     #   return count
-    pass
+    cols = [0] * n
+    count = 0
+
+    def place(row):
+        for select_col in range(n):
+            check = True
+            for r in range(row):
+                if select_col == cols[r] or abs(row - r) == abs(cols[r] - select_col):
+                    check = False
+            if check:
+                cols[row] = select_col
+                if row == (n - 1):
+                    nonlocal count
+                    count += 1
+                    return
+                place(row + 1)
+
+    place(0)
+    return count
 
 
 if __name__ == "__main__":
