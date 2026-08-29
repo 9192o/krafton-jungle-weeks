@@ -91,6 +91,7 @@ print_list() 가 해야 할 일:
             current 를 current.next 로 이동.
 """
 
+
 class Node:
     """
     연결 리스트의 노드 (한 칸 = 데이터 + 다음 화살표)
@@ -99,6 +100,7 @@ class Node:
         │ data │ next │ ──▶ (다른 Node 또는 None)
         └──────┴──────┘
     """
+
     def __init__(self, data):
         self.data = data
         self.next = None
@@ -110,6 +112,7 @@ class LinkedList:
 
         head ──▶ [data|next] ──▶ [data|next] ──▶ ... ──▶ [data|None]
     """
+
     def __init__(self):
         self.head = None
 
@@ -132,24 +135,22 @@ class LinkedList:
         # ─── Level 1: 리스트가 비어 있는 경우 ────────────────────────
         # 힌트: self.head 가 None 이면, head 에 new_node 를 바로 꽂고 return.
         # TODO: 아래 pass 를 지우고 if 문을 완성하세요.
-        #   if self.head is None:
-        #       self.head = new_node
-        #       return
-        pass
+        if self.head is None:
+            self.head = new_node
+            return
 
         # ─── Level 2: 마지막 노드 찾기 ──────────────────────────────
         # head 부터 시작해서 next 가 None 이 될 때까지 따라갑니다.
         # 즉 "current.next 가 있는 동안" 계속 이동.
         current = self.head
         # TODO: while 문으로 current 를 마지막 노드까지 이동시키세요.
-        #   while current.next is not None:
-        #       current = current.next
-        pass
+        while current.next is not None:
+            current = current.next
 
         # ─── Level 3: 마지막 노드의 next 에 새 노드를 붙이기 ─────────
         # 위 반복문이 끝나면 current 가 곧 마지막 노드입니다.
         # TODO: current.next = new_node
-        pass
+        current.next = new_node
 
     def print_list(self):
         """
@@ -162,7 +163,7 @@ class LinkedList:
         # ─── Level 1: 시작 위치 ─────────────────────────────────────
         # current 라는 "이동용 변수" 를 head 에서 시작시킵니다.
         # TODO: current = self.head
-        pass
+        current = self.head
 
         # ─── Level 2: 끝까지 순회 ──────────────────────────────────
         # current 가 None 이 되면 "리스트의 끝" 이라는 신호입니다.
@@ -171,7 +172,9 @@ class LinkedList:
         #   while current is not None:
         #       values.append(current.data)
         #       current = current.next
-        pass
+        while current is not None:
+            values.append(current.data)
+            current = current.next
 
         return values
 
