@@ -54,14 +54,16 @@ def find_duplicates_sorting(nums):
         return []
 
     # TODO: 배열을 정렬하세요 (nums.sort() 사용)
-    nums.sort()
-
+    nums.sort()  # <- n log n 퀵 정렬
+    # [4, 4, 5, 5, 4, 4] -> [4, 4, 5, 5, 6, 6] nums
+    # [4, 5, 6] duplicates
     duplicates = []
 
     # TODO: 인접한 원소를 비교하여 중복 찾기
     # i와 i+1 원소가 같고, duplicates에 없으면 추가
+
     for i in range(len(nums) - 2):
-        if nums[i] == nums[i + 1] and nums[i + 1] not in duplicates:
+        if nums[i] == nums[i + 1] and (not duplicates or duplicates[-1] != nums[i]):
             duplicates.append(nums[i])
 
     return duplicates
