@@ -32,43 +32,39 @@ BFS: [0, 1, 2, 3]
 
 from collections import deque
 
+
 def bfs(graph, start):
     """
     너비 우선 탐색
-    
+
     Args:
         graph: 그래프 딕셔너리
         start: 시작 정점
-    
+
     Returns:
         방문 순서 리스트
     """
     visited = []
-    
-    # TODO: 큐 생성 및 시작 정점 추가
-    ## 방문한 정점 집합
-    pass
+    q = deque(graph[start])
+    # 일단 시작 정점 친구들을 넣어
+    visited.append(start)
 
-    # TODO: 큐가 빌 때까지 반복
-    ## 큐에서 정점 꺼내기
-    ## 인접한 정점들 확인
-    ## 방문하지 않은 정점이면 큐에 추가
-    pass
-    
+    # 그리고 꺼내서 막 탐색을 해
+    while len(q):
+        key = q.popleft()
+
+        if key not in visited:
+            visited.append(key)
+            q.extend(graph[key])
     return visited
+
 
 # 테스트 케이스
 if __name__ == "__main__":
     # 그래프 생성
-    graph = {
-        0: [1, 2],
-        1: [0, 2],
-        2: [0, 1, 3],
-        3: [2]
-    }
-    
+    graph = {0: [1, 2], 1: [0, 2], 2: [0, 1, 3], 3: [2]}
+
     print("=== BFS (너비 우선 탐색) ===")
     result = bfs(graph, 0)
     print(f"시작 정점: 0")
     print(f"방문 순서: {result}")
-
