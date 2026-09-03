@@ -32,66 +32,56 @@
 - 순회 순서만 다름
 """
 
+
 class TreeNode:
     """이진 트리 노드"""
+
     def __init__(self, value):
         self.value = value
         self.left = None
         self.right = None
 
+
 def preorder(root):
     """전위 순회: 루트 → 왼쪽 → 오른쪽"""
     result = []
-    
-    # TODO: root가 None이면 빈 리스트 반환
-    pass
-    
-    # TODO: 루트 값 추가
-    pass
-    
-    # TODO: 왼쪽 서브트리 순회
-    pass
-    
-    # TODO: 오른쪽 서브트리 순회
-    pass
-    
+
+    if root is None:
+        return []
+
+    result.append(root.value)
+    result += preorder(root.left)
+    result += preorder(root.right)
+
     return result
+
 
 def inorder(root):
     """중위 순회: 왼쪽 → 루트 → 오른쪽"""
     result = []
-    
-    # TODO: root가 None이면 빈 리스트 반환
-    pass
-    
-    # TODO: 왼쪽 서브트리 순회
-    pass
-    
-    # TODO: 루트 값 추가
-    pass
-    
-    # TODO: 오른쪽 서브트리 순회
-    pass
-    
+
+    if root is None:
+        return []
+    result += inorder(root.left)
+    result.append(root.value)
+    result += inorder(root.right)
+
     return result
+
 
 def postorder(root):
     """후위 순회: 왼쪽 → 오른쪽 → 루트"""
     result = []
-    
-    # TODO: root가 None이면 빈 리스트 반환
-    pass
-    
-    # TODO: 왼쪽 서브트리 순회
-    pass
-    
-    # TODO: 오른쪽 서브트리 순회
-    pass
-    
-    # TODO: 루트 값 추가
-    pass
-    
+
+    if root is None:
+        return []
+
+    result += postorder(root.left)
+    result += postorder(root.right)
+    result.append(root.value)
+
     return result
+
 
 # 테스트 케이스
 if __name__ == "__main__":
@@ -106,9 +96,8 @@ if __name__ == "__main__":
     root.right = TreeNode(3)
     root.left.left = TreeNode(4)
     root.left.right = TreeNode(5)
-    
+
     print("=== 이진 트리 순회 ===")
     print(f"전위 순회: {preorder(root)}")
     print(f"중위 순회: {inorder(root)}")
     print(f"후위 순회: {postorder(root)}")
-
