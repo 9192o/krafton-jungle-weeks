@@ -65,7 +65,7 @@ dijkstra(n: int, edges: list[tuple[int, int, int]], start: int) -> list
 import heapq
 
 
-INF = float('inf')
+INF = float("inf")
 
 
 def dijkstra(n: int, edges: list, start: int) -> list:
@@ -75,16 +75,11 @@ def dijkstra(n: int, edges: list, start: int) -> list:
     start: 출발 정점
     반환: 길이 n 의 거리 리스트 (도달 불가 = float('inf'))
     """
-    # TODO: 인접 리스트 graph 구성 (graph[u] = [(v, w), ...])
-    # TODO: dist 를 INF 로 초기화하고 dist[start] = 0
-    # TODO: 우선순위 큐(heapq)로 BFS-like 최단경로 탐색
-    # TODO: dist 반환
-    pass
 
 
 def _format(dist):
     """출력 표기를 위한 헬퍼: float('inf') 는 'INF' 로 보여줌"""
-    return [('INF' if x == INF else x) for x in dist]
+    return [("INF" if x == INF else x) for x in dist]
 
 
 if __name__ == "__main__":
