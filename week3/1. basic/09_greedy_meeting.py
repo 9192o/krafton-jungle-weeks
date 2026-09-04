@@ -33,8 +33,27 @@ def select_meetings(meetings):
     Returns:
         (배정된 회의 개수, 선택된 회의 리스트)
     """
-
     selected = []
+    if meetings is None:
+        return 0, []
+    if len(meetings) == 1:
+        return 1, meetings
+
+    # 음, 종료 시간이 빠른 애들을 기준으로 정렬하자.
+    meetings.sort(key=lambda t: t[1])
+
+    # 맨 처음 하나를 고름
+    selected.append(meetings[0])
+
+    # 그 다음 종료 시간을 봄
+    # 근데, 시작 시간이, 지금 selected에 있는 종료 시간보다 더 커야함.
+    tail = 0
+    for i in range(1, len(meetings)):
+        _, e = selected[tail]
+        sm, _ = meetings[i]
+        if e <= sm:
+            selected.append(meetings[i])
+            tail += 1
 
     return len(selected), selected
 
