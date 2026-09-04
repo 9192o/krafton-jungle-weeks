@@ -28,34 +28,52 @@
 
 from collections import deque
 
+
 def topological_sort(vertices, edges):
     """
     위상 정렬 (Kahn's Algorithm)
-    
+
     Args:
         vertices: 정점 개수
         edges: (출발, 도착) 간선 리스트
-    
+
     Returns:
         위상 정렬 순서
     """
-    # TODO: 그래프와 진입 차수 초기화
-    pass
-    
-    # TODO: 그래프 구성 및 진입 차수 계산
-    pass
-    
-    # TODO: 진입 차수가 0인 정점들을 큐에 추가
-    pass
-    
+    # indegree와 outdegree들을 저장하기 위함.
+    not_inbound = [i for i in range(vertices)]
+    outbound = {}
     result = []
-    
-    # TODO: 큐가 빌 때까지 반복
-    ## 큐에서 정점 꺼내기
-    ## 인접한 정점들의 진입 차수 감소
-    pass
-    
+
+    # (출발, 도착) 간선 리스트들 중에
+    for s, e in edges:
+        # inbound가 있는 애들은 제외하고 없는 애들만 남긴다.
+        if e in not_inbound:
+            not_inbound.remove(e)
+        # outbound들은 따로 매핑해준다. {s: [e, ]}
+        if outbound.get(s) is None:
+            outbound[s] = [
+                e,
+            ]
+        else:
+            outbound[s].extend([e])
+
+    # outbound가 없는 애들을 먼저 Queue에 push.
+    q = deque(not_inbound)
+
+    # Queue가 빌때까지
+    while len(q):
+        node = q.popleft()
+        # 하나 뽑아서 노드를 넣는다.
+        result.append(node)
+
+        # 그리고 그 노드들의 outbound를, result에 없으면 넣고 있으면 넣지 않는다.
+        if outbound.get(node) is not None:
+            for n in outbound[node]:
+                if n not in result:
+                    q.extend([n])
     return result
+
 
 # 테스트 케이스
 if __name__ == "__main__":
@@ -66,12 +84,12 @@ if __name__ == "__main__":
         (0, 2),  # 0 → 2
         (1, 3),  # 1 → 3
     ]
-    
+
     print("=== 위상 정렬 ===")
     print("과목 관계:")
     print("  0(기초) → 1(중급) → 3(고급)")
     print("  0(기초) → 2(응용)")
     print()
-    
+
     result = topological_sort(vertices, edges)
     print(f"수강 순서: {result}")
