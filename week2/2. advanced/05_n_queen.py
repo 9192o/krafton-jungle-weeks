@@ -75,7 +75,7 @@ def n_queens(n: int) -> int:
         for select_col in range(n):
             check = True
             for r in range(row):
-                if select_col == cols[r] or abs(row - r) == abs(cols[r] - select_col):
+                if select_col == cols[r] or row - r == abs(cols[r] - select_col):
                     check = False
             if check:
                 cols[row] = select_col
