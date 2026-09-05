@@ -75,6 +75,29 @@ def dijkstra(n: int, edges: list, start: int) -> list:
     start: 출발 정점
     반환: 길이 n 의 거리 리스트 (도달 불가 = float('inf'))
     """
+    # 먼저 모든 시작점 -> 다른 노드 들의 가중치를 INF로 초기화
+    weights = [INF] * n
+
+    # 그 다음, 시작점을 0으로 둠.
+    weights[start] = 0
+
+    # 시작점을 Queue에 Push
+    q = []
+    heapq.heappush(q, start)
+
+    # 다 방문했으면 루프 종료
+    while len(q):
+        # Queue에서 Pop
+        node = heapq.heappop(q)
+
+        # 간선 리스트에서,
+        for u, v, w in edges:
+            # 현재 노드가 같고, v까지 가는게 현재 저장되어있는 것보다 크면
+            if u == node and weights[u] + w < weights[v]:
+                # 갱신
+                weights[v] = weights[u] + w
+                heapq.heappush(q, v)
+    return weights
 
 
 def _format(dist):
