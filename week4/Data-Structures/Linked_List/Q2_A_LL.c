@@ -102,6 +102,40 @@ int main()
 void alternateMergeLinkedList(LinkedList *ll1, LinkedList *ll2)
 {
 	/* add your code here */
+
+	// Linked List를 ll1 쪽으로 merge한다.
+
+	// 예시 1:
+	// ll1 - 1, 2, 3
+	// ll2 - 4, 5, 6, 7
+	// 결과:
+	// ll1 - 1, 4, 2, 5, 3, 6
+	// ll2 - 7
+
+	// 예시 2:
+	// ll1 - 1, 5, 7, 3, 9, 11
+	// ll2 - 6, 10, 2, 4
+	// 결과:
+	// ll1 - 1, 6, 5, 10, 7, 2, 3, 4, 9, 11
+	// ll2 - EMPTY
+
+	// 1. ll1 의 index = 0, 2, 4, 6...의 next를
+	// 2. ll2 의 index = 0, 1, 2, 3 으로 갈아끼워야 한다. (pop)
+
+	// 1. 만약 ll1보다 ll2가 더 작다면?
+	// size2 에 따라 결정될 것.
+
+	// 2. 만약 ll1보다 ll2가 더 크다면?
+	// size1 에 따라 결정될 것.
+	int s = (ll1->size < ll2->size) ? ll1->size : ll2->size;
+
+	int index = 1;
+	while (index < 2 * s)
+	{
+		insertNode(ll1, index, ll2->head->item);
+		removeNode(ll2, 0);
+		index += 2;
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
