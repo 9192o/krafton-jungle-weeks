@@ -88,7 +88,96 @@ int main()
 
 int insertSortedLL(LinkedList *ll, int item)
 {
+	// 조건:
+	// 1. 새 항목이 추가된 인덱스 위치를 반환해야 한다.
+	// 2. 함수 실행이 실패한 경우 -1 반환해야 한다.
+
+	// 만약 현재 Linked List가 다음과 같고,
+	// [2, 3, 5, 7, 9]
+	// 여기서 8을 추가해야 한다면 결과는 다음과 같다.
+	// [2, 3, 5, 7, 8, 9]
+	// 또한 반환값은 삽입된 인덱스, 4를 출력해야한다.
+
+	// 만약 현재 Linked List가 다음과 같고,
+	// [5, 7, 9, 11, 15]
+	// 여기서 7을 추가한다면 결과는 다음과 같다.
+	// [5, 7, 9, 11, 15]
+	// 반환값은 -1
+
 	/* add your code here */
+	ListNode *cur, *temp;
+
+	// 1. List 자체가 비어있을 때
+	if (ll == NULL)
+	{
+		return -1;
+	}
+
+	// List head가 비어있을 때 (첫 번째 Push)
+	int index = 0;
+	if (ll->head == NULL)
+	{
+		ListNode *node = malloc(sizeof(ListNode));
+		node->item = item;
+		node->next = NULL;
+		ll->head = node;
+		ll->size++;
+		return index;
+	}
+
+	// List가 비어있지 않을 때 (정렬 Push)
+	// Current Node의 item과, 현재 인수로 들어온 item과 비교하여
+	// 노드를 삽입한다.
+
+	// TODO: 아래에 함수 포인터 findNode가 있던데
+	if (ll->head != NULL)
+	{
+		cur = ll->head;
+		while (cur != NULL)
+		{
+			// Linked List 안에 중복 값이 있으면 return -1
+			if (cur->item == item)
+				return -1;
+
+			// 조건은 세 가지.
+			// 1. head가 더 클때. 그러니까 인덱스 0에 해당하는 노드가 더 클때.
+			if (cur->item > item && index == 0)
+			{
+				ListNode *node = malloc(sizeof(ListNode));
+				node->item = item;
+				node->next = cur;
+				ll->head = node;
+				return index;
+			}
+
+			// 2. cur->next가 없고, cur->item < item
+			if (cur->next == NULL && cur->item < item)
+			{
+				ListNode *node = malloc(sizeof(ListNode));
+				node->item = item;
+				node->next = NULL;
+
+				cur->next = node;
+				return index;
+			}
+
+			// 3. cur->next가 있고, cur->item < item < cur->next->item
+			if (cur->item < item && cur->next->item > item)
+			{
+				ListNode *node = malloc(sizeof(ListNode));
+
+				temp = cur->next;
+				node->item = item;
+				node->next = temp;
+
+				cur->next = node;
+				return index;
+			}
+			cur = cur->next;
+			index++;
+		}
+	}
+	return -1;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
