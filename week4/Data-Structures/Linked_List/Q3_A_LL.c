@@ -99,9 +99,6 @@ void moveOddItemsToBack(LinkedList *ll)
 	int last = ll->size;
 	int c = last;
 
-	if (ll == NULL)
-		return;
-
 	while (c--)
 	{
 		ListNode *temp = findNode(ll, index);
@@ -112,9 +109,7 @@ void moveOddItemsToBack(LinkedList *ll)
 			removeNode(ll, index);
 		}
 		else
-		{
 			index++;
-		}
 	}
 }
 
