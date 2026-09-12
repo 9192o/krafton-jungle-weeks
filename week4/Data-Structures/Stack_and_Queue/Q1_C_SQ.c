@@ -120,7 +120,7 @@ void createQueueFromLinkedList(LinkedList *ll, Queue *q)
 	qNode->item = temp->item;
 	qNode->next = NULL;
 	q->ll.head = qNode;
-
+	q->ll.size++;
 	// Q에 노드 복사
 	while (temp->next != NULL)
 	{
@@ -132,12 +132,27 @@ void createQueueFromLinkedList(LinkedList *ll, Queue *q)
 		node->next = NULL;
 
 		qNode = qNode->next;
+		q->ll.size++;
 	}
 }
 
 void removeOddValues(Queue *q)
 {
 	/* add your code here */
+	int count, index = 0;
+
+	if (q == NULL)
+		return;
+	count = q->ll.size;
+
+	for (int i = 0; i < count; i++)
+	{
+		ListNode *temp = findNode(&(q->ll), index);
+		if (temp != NULL && temp->item % 2 != 0)
+			removeNode(&(q->ll), index);
+		else
+			index++;
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////
