@@ -1,9 +1,9 @@
 CC = gcc
 CFLAGS = -Wall -Wextra
 
-q6:Q6_C_SQ.c
-	$(CC) $(CFLAGS) -g -o q6 Q6_C_SQ.c
+q7:Q7_C_SQ.c
+	$(CC) $(CFLAGS) -g -o q7 Q7_C_SQ.c
 
 .PHONY: clean
 clean:
-	rm -f q6
+	rm -f q7
