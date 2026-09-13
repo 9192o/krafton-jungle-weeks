@@ -8,6 +8,8 @@ Purpose: Implementing the required functions for Question 7 */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
+#define min(x, y) ((x) < (y) ? (x) : (y))
 
 //////////////////////////////////////////////////////////////////////////////////
 
@@ -100,6 +102,10 @@ int main()
 int smallestValue(BTNode *node)
 {
     /* add your code here */
+    if (node == NULL)
+        return INT_MAX;
+    int result = min(smallestValue(node->left), smallestValue(node->right));
+    return min(result, node->item);
 }
 
 //////////////////////////////////////////////////////////////////////////////////
