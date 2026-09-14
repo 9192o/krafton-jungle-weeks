@@ -42,7 +42,7 @@ BSTNode *peek(Stack *s);
 int isEmpty(Stack *s);
 void removeAll(BSTNode **node);
 BSTNode *removeNodeFromTree(BSTNode *root, int value);
-
+int findSmallestValue(BSTNode *root);
 ///////////////////////////// main() /////////////////////////////////////////////
 
 int main()
@@ -114,6 +114,7 @@ void postOrderIterativeS2(BSTNode *root)
 		push(&s2, temp);
 	}
 
+	// 2번 스택에 다 저장되어있으니, 그대로 출력
 	while (!isEmpty(&s2))
 		printf("%d ", pop(&s2)->item);
 }
@@ -123,6 +124,54 @@ void postOrderIterativeS2(BSTNode *root)
 BSTNode *removeNodeFromTree(BSTNode *root, int value)
 {
 	/* add your code here */
+	BSTNode *cur = root;
+
+	// 0. 삭제하려는 노드를 탐색
+	if (cur == NULL)
+		return NULL;
+
+	if (cur->item == value)
+	{
+		// 1. 삭제하려는 노드의 자식 개수가 0개일 경우
+		if (cur->left == NULL && cur->right == NULL)
+		{
+			free(cur);
+			return NULL;
+		}
+		// 2. 삭제하려는 노드의 자식 개수가 1개일 경우
+		else if ((cur->left != NULL && cur->right == NULL) || (cur->left == NULL && cur->right != NULL))
+		{
+			BSTNode *temp = cur->left != NULL ? cur->left : cur->right;
+			free(cur);
+			return temp;
+		}
+
+		// 3. 삭제하려는 노드의 자식 개수가 2개일 경우
+		else
+		{
+			// 가장 작은 값을 가진 노드를 탐색
+			int smallest = findSmallestValue(cur->right);
+			// 현재 노드를 가장 작은 값으로 교체
+			cur->item = smallest;
+			// 오른쪽으로 넘어감.
+			cur->right = removeNodeFromTree(cur->right, smallest);
+			return cur;
+		}
+	}
+	if (value < cur->item)
+	{
+		cur->left = removeNodeFromTree(cur->left, value);
+		return cur;
+	}
+	cur->right = removeNodeFromTree(cur->right, value);
+	return cur;
+}
+
+int findSmallestValue(BSTNode *root)
+{
+	// 최솟값을 반환하는 헬퍼
+	// 어차피 왼쪽으로 가야함 (BT)
+	return root->left == NULL ? root->item : findSmallestValue(root->left);
 }
 ///////////////////////////////////////////////////////////////////////////////
 
