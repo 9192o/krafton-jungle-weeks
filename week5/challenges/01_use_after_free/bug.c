@@ -50,11 +50,10 @@ static void dialog_on_event(Widget *self, int code);
 
 static const VTable BUTTON_VT = {button_render, widget_noop_event};
 static const VTable LABEL_VT = {label_render, widget_noop_event};
-static const VTable DIALOG_VT = {dialog_render, widget_noop_event};
+static const VTable DIALOG_VT = {dialog_render, dialog_on_event};
 
 static Widget *widget_new(const VTable *vt, int id, const char *label)
 {
-
     /* [Thinking Point]
      *   w 에 아직 아무 값도 넣지 않았는데, sizeof *w 로 *w 를 써도 괜찮은 이유는?
      *   tip 1. sizeof 는 피연산자를 '실행(역참조)'하지 않고 '타입'만 본다.
@@ -90,11 +89,22 @@ static void screen_add(Screen *s, Widget *w)
 
 static void screen_dispatch(Screen *s, int code)
 {
+    int llindex = s->count - 1;
     for (int i = 0; i < s->count; i++)
     {
         Widget *w = s->items[i];
         w->vtbl->on_event(w, code);
     }
+
+    for (int i = 0; i < s->count - 1; i++)
+    {
+        if (s->items[i]->closed)
+        {
+            s->items[i] = s->items[i + 1];
+            llindex--;
+        }
+    }
+    s->count = llindex + 1;
 }
 
 // 여기서 SegFault. Stack Frame 2
@@ -111,7 +121,7 @@ static void dialog_on_event(Widget *self, int code)
 {
     if (code == 1)
     {
-        self->closed = 1;
+        self->closed = 1; // 왜 파괴될 객체에 closed 1을 쓰는가? 누가 짰는가 대체?
         widget_destroy(self);
     }
 }
@@ -150,7 +160,7 @@ int main(void)
     printf("%s\n", status);
 
     printf("frame 2:\n");
-    screen_render(&s);
+    screen_render(&s); // 걍 이때 검사하면 안됨?
 
     free(status);
     for (int i = 0; i < s.count; i++)
