@@ -25,7 +25,6 @@
  *
  * [기대 동작]
  *   삼각형을 만들고 각 행의 합(=2^i)을 출력한 뒤 정상 종료.
- *
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,9 +44,9 @@ static int tri_index(int i, int j)
 /* 파스칼의 삼각형을 tri[] 에 채운다. */
 static void build_pascal(int *tri, int rows)
 {
-    for (int i = 0; i <= rows; i++)
+    for (int i = 0; i < rows; i++) // 이거랑
     {
-        for (int j = 0; j <= i; j++)
+        for (int j = 0; j <= i; j++) // 이거 왜 <=? '<' 로 바꿔봄
         {
             int idx = tri_index(i, j);
             if (j == 0 || j == i)
@@ -82,9 +81,9 @@ static void print_row(const int *tri, int i)
 
 int main(void)
 {
-    int tri[SIZE];
+    int tri[SIZE]; // SIZE = 105
 
-    build_pascal(tri, ROWS);
+    build_pascal(tri, ROWS); // ROWS = 14
 
     for (int i = 0; i < ROWS; i++)
         print_row(tri, i);
@@ -103,4 +102,5 @@ int main(void)
  *          감시 값을 심어두고, 함수가 return 하기 직전에 그 값이 그대로인지 검사한다.
  *   생각해보기: build_pascal 이 tri[] 경계를 넘어 쓰면 카나리가 훼손된다. 그렇다면
  *               크래시가 "배열을 넘어 쓰는 순간"이 아니라 "return 시점"에 나는 이유는?
- *               (힌트: 오버플로 자체는 조용히 일어나고, 검사는 return 직전에 이뤄진다) */
+ *               (힌트: 오버플로 자체는 조용히 일어나고, 검사는 return 직전에 이뤄진다)
+ */

@@ -96,6 +96,7 @@ static void screen_dispatch(Screen *s, int code)
         w->vtbl->on_event(w, code);
     }
 
+    // TODO: 최선인가? 후에, 확장되어서 closed가 많으면?
     for (int i = 0; i < s->count - 1; i++)
     {
         if (s->items[i]->closed)
