@@ -17,7 +17,6 @@ static void dirty_heap(void)
 
 static int **make_matrix(void)
 {
-
     int **rows = malloc(ROWS * sizeof(int *));
     if (!rows)
     {
@@ -25,7 +24,7 @@ static int **make_matrix(void)
         exit(1);
     }
 
-    for (int i = 0; i < ROWS; i += 2)
+    for (int i = 0; i < ROWS; i++) // <- i += 2 ??
     {
         int *r = malloc(COLS * sizeof(int));
         for (int j = 0; j < COLS; j++)
@@ -55,7 +54,7 @@ int main(void)
     int **rows = make_matrix();
     printf("summing %dx%d matrix...\n", ROWS, COLS);
 
-    long s = row_sum(rows, ROWS);
+    long s = row_sum(rows, ROWS); // <- 여기. 초기값 세팅 해줘야 됨.
 
     printf("sum = %ld\n", s);
 
