@@ -23,7 +23,7 @@ static void parse_headers(char *text, Headers *h)
     {
         // colon 위치 찾아서 (그 주소부터 뒤...)
         // 근데 colon이 없으면 얘는 NULL 반환함.
-        char *colon = strchr(line, ':'); 
+        char *colon = strchr(line, ':');
 
         if (colon == NULL) // <- 따라서 NULL이면 그냥 다음줄로 넘김.
             continue;
