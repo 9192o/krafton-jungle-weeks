@@ -56,11 +56,14 @@ static Job *filter_jobs(Job *head, int threshold, Audit *audit)
 
     while (cur != NULL)
     {
+        // free() 후 cur = cur->next??
         if (cur->priority < threshold)
         {
             audit_add(audit, cur->id);
-            job_release(cur);
+
+            Job *temp = cur; // 그래서 현재 노드 가리키는 포인터 하나 생성함.
             cur = cur->next;
+            job_release(temp);
         }
         else
         {
