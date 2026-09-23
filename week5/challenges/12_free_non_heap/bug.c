@@ -13,7 +13,7 @@ typedef struct
 
 static void parse_row(Row *r, const char *csv)
 {
-    r->base = strdup(csv);
+    r->base = strdup(csv); // 내부적으로 메모리 할당 후 문자열 복사
     if (!r->base)
     {
         perror("strdup");
@@ -21,10 +21,11 @@ static void parse_row(Row *r, const char *csv)
     }
     r->n = 0;
 
+    // 메모리 공간에 복사된 문자열, "," 기준으로 Tokenize
     for (char *tok = strtok(r->base, ","); tok && r->n < MAX_FIELDS;
          tok = strtok(NULL, ","))
     {
-        r->fields[r->n++] = tok;
+        r->fields[r->n++] = strdup(tok); // 아예 토큰들도 따로 메모리 갖게 함.
     }
 }
 
@@ -42,6 +43,7 @@ static void row_free(Row *r)
     {
         free(r->fields[i]);
     }
+    free(r->base); // base 메모리 공간도 free
     r->n = 0;
 }
 

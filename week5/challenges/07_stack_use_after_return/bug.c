@@ -30,6 +30,8 @@ static void warm_stack(void)
         : "memory");
 }
 
+// 근본적 해결방안은 아님.
+// 후에는 다르게 할당을 해야하는 방안을 채택해야함.
 int main(void)
 {
     char text[] = "alpha\nbeta\ngamma";
