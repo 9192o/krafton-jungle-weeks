@@ -41,6 +41,7 @@ static User *login(int uid, const char *name)
 static void logout(Session *s)
 {
     free(s->user);
+    s->user = NULL;
 }
 
 static char *audit_record(const char *event)
@@ -55,7 +56,8 @@ static char *audit_record(const char *event)
 
 static int handle_request(Session *s, const char *action)
 {
-
+    if (s->user == NULL)
+        return -1;
     return s->user->permission(action);
 }
 

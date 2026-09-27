@@ -9,6 +9,7 @@ typedef struct
     int count;
 } LineView;
 
+// 아예 그냥 원본 기준으로 짤라서 매핑해버림.
 static void split_lines(LineView *out, char *text)
 {
     out->count = 0;
