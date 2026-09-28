@@ -26,17 +26,20 @@ static void signal_trim(Signal *s, size_t keep)
     if (keep > s->cap)
         return;
     double *p = realloc(s->samples, keep * sizeof(double));
-    if (p)
-        s->samples = p;
+    if (!p)
+        exit(1);
+
+    s->samples = p;
     s->cap = keep;
+    s->len = keep; // 그래서 얘를 추가해야한다. 문제는, s->len은 "실제로" 이 메모리에 객체가 들어있는지를 나타내는데...
 }
 
 static double signal_energy(const Signal *s)
 {
     double e = 0.0;
-    for (size_t i = 0; i < s->len; i++)
+    for (size_t i = 0; i < s->len; i++) // s->cap은 8로 줄어들었으나 문제는 s->len이 줄어들지 않았다.
     {
-        e += s->samples[i] * s->samples[i];
+        e += s->samples[i] * s->samples[i]; // 따라서 여기서 i = 8 이상 되는 순간...
     }
     return e;
 }
