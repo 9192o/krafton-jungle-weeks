@@ -26,14 +26,13 @@ static void hist_grow(Histogram *h)
     h->data = p;
 }
 
-static Bucket *hist_add(Histogram *h, int key)
+static void hist_add(Histogram *h, int key)
 {
     if (h->len == h->cap)
         hist_grow(h);
     Bucket *b = &h->data[h->len++];
     b->key = key;
     b->count = 0;
-    return b;
 }
 
 static long hist_total(const Histogram *h)
