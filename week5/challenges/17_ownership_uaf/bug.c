@@ -41,9 +41,11 @@ static void msg_free(Msg *m)
 static void publish(Broker *b, int id, const char *body)
 {
     Msg *m = msg_new(id, body);
+    Msg *lm = msg_new(id, body);
     b->inbox[b->tail] = m;
     b->tail = (b->tail + 1) % QCAP;
-    b->log[b->log_n++] = m;
+    // b->log[b->log_n++] = m; <- inbox와 log가 같은 메시지 객체를 가리키고 있으니, 복사해서 경계를 나눠주자.
+    b->log[b->log_n++] = lm;
 }
 
 static void deliver(Broker *b, Subscriber sub)
@@ -59,14 +61,14 @@ static void deliver(Broker *b, Subscriber sub)
 static void on_message(Msg *m)
 {
     printf("recv #%d: %s\n", m->id, m->body);
-    msg_free(m);
+    msg_free(m); // 메시지를 보내고 free시키고 있는데,
 }
 
 static void broker_shutdown(Broker *b)
 {
     for (int i = 0; i < b->log_n; i++)
     {
-        msg_free(b->log[i]);
+        msg_free(b->log[i]); // 문제는 log도 그 메시지를 가리키고 있다.
     }
     b->log_n = 0;
 }
