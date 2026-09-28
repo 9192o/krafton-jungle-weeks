@@ -51,12 +51,11 @@ int main(void)
     for (int k = 0; k < 200000; k++)
         hist_add(&h, k);
 
-    Bucket *hot = &h.data[100000];
-    hot->count = 1;
-
     for (int k = 200000; k < 600000; k++)
         hist_add(&h, k);
 
+    Bucket *hot = &h.data[100000]; // 아래에서 realloc을 호출하는데 먼저 저장한다고?
+    hot->count = 1;
     hot->count += 1000;
 
     printf("hot=%ld total=%ld len=%zu\n", hot->count, hist_total(&h), h.len);
