@@ -73,7 +73,10 @@ static void broker_shutdown(Broker *b)
 
 int main(void)
 {
-    Broker b = {.head = 0, .tail = 0, .log_n = 0};
+    Broker b = {
+        .head = 0,
+        .tail = 0,
+        .log_n = 0};
 
     publish(&b, 1, "hello");
     publish(&b, 2, "world");

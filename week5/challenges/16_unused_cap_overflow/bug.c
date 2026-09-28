@@ -1,8 +1,21 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
+// cap을 안 씀(buf를 malloc 해줘야 할까?)
 static void append_field(char *buf, size_t cap, size_t *len, const char *field, char sep)
 {
+    if (*len == cap)
+    {
+        cap *= 2;
+        buf = realloc(buf, cap);
+        if (!buf)
+        {
+            perror("realloc");
+            free(buf);
+            exit(1);
+        }
+    }
     if (*len > 0)
     {
         buf[(*len)++] = sep;
@@ -13,7 +26,6 @@ static void append_field(char *buf, size_t cap, size_t *len, const char *field, 
         buf[(*len)++] = field[i];
     }
     buf[*len] = '\0';
-    (void)cap;
 }
 
 static void build_record(char *rec, size_t cap)
@@ -36,9 +48,10 @@ static void build_record(char *rec, size_t cap)
 
 int main(void)
 {
-    char rec[24];
+    // char rec[24]; 이대로 코드를 실행한다면, rec 배열도 계속 늘려줘야 될 것 같은데.
+    char *rec = malloc(24 * sizeof(char *));
 
-    build_record(rec, sizeof rec);
+    build_record(rec, sizeof(rec));
 
     printf("record = %s\n", rec);
     return 0;

@@ -15,6 +15,7 @@ static int handshake_ok(const Conn *c)
     return 0;
 }
 
+// goto 문법을 2026년에 쓴다고?
 static int conn_open(Conn *c, size_t bufsz)
 {
     c->rx = c->tx = NULL;
@@ -29,7 +30,7 @@ static int conn_open(Conn *c, size_t bufsz)
         goto fail_tx;
 
     c->state = malloc(sizeof(int) * 4);
-    if (!c->state)
+    if (!c->state) // 왜 free 두 번 함
         goto fail_state;
 
     strcpy(c->rx, "rx-ready");
@@ -38,11 +39,7 @@ static int conn_open(Conn *c, size_t bufsz)
         c->state[i] = i;
 
     if (!handshake_ok(c))
-    {
-
-        free(c->tx);
         goto fail_tx;
-    }
 
     return 0;
 
