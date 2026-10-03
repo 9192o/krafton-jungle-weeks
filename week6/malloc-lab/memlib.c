@@ -1,7 +1,5 @@
 /*
- * memlib.c - a module that simulates the memory system.  Needed because it 
- *            allows us to interleave calls from the student's malloc package 
- *            with the system's malloc package in libc.
+ * memlib.c - 메모리 시스템 시뮬레이션 모델
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,28 +12,29 @@
 #include "memlib.h"
 #include "config.h"
 
-/* private variables */
-static char *mem_start_brk;  /* points to first byte of heap */
-static char *mem_brk;        /* points to last byte of heap */
-static char *mem_max_addr;   /* largest legal heap address */ 
+static char *mem_start_brk; /* 힙의 첫 번째 바이트(start)를 가리킴 */
+static char *mem_brk;       /* 힙의 마지막 바이트(top)를 가리킴 */
+static char *mem_max_addr;  /* 최대 허용 메모리 주소 */
 
-/* 
- * mem_init - initialize the memory system model
+/*
+ * mem_init() - 메모리 시스템 초기화 함수.
  */
 void mem_init(void)
 {
-    /* allocate the storage we will use to model the available VM */
-    if ((mem_start_brk = (char *)malloc(MAX_HEAP)) == NULL) {
-	fprintf(stderr, "mem_init_vm: malloc error\n");
-	exit(1);
+    // MAX_HEAP 만큼 메모리 할당
+    if ((mem_start_brk = (char *)malloc(MAX_HEAP)) == NULL)
+    {
+        fprintf(stderr, "mem_init_vm: malloc error\n");
+        exit(1);
     }
 
-    mem_max_addr = mem_start_brk + MAX_HEAP;  /* max legal heap address */
-    mem_brk = mem_start_brk;                  /* heap is empty initially */
+    // 메모리 공간 포인터 초기화
+    mem_max_addr = mem_start_brk + MAX_HEAP;
+    mem_brk = mem_start_brk;
 }
 
-/* 
- * mem_deinit - free the storage used by the memory system model
+/*
+ * mem_deinit - 메모리 시스템 해제 함수.
  */
 void mem_deinit(void)
 {
@@ -43,41 +42,41 @@ void mem_deinit(void)
 }
 
 /*
- * mem_reset_brk - reset the simulated brk pointer to make an empty heap
+ * mem_reset_brk - 메모리 시스템 리셋 함수.
  */
 void mem_reset_brk()
 {
     mem_brk = mem_start_brk;
 }
 
-/* 
- * mem_sbrk - simple model of the sbrk function. Extends the heap 
- *    by incr bytes and returns the start address of the new area. In
- *    this model, the heap cannot be shrunk.
+/*
+ * mem_sbrk - 힙 확장 함수.
  */
-void *mem_sbrk(int incr) 
+void *mem_sbrk(int incr)
 {
     char *old_brk = mem_brk;
 
-    if ( (incr < 0) || ((mem_brk + incr) > mem_max_addr)) {
-	errno = ENOMEM;
-	fprintf(stderr, "ERROR: mem_sbrk failed. Ran out of memory...\n");
-	return (void *)-1;
+    // 잘못된 값이 들어왔을 경우
+    if ((incr < 0) || ((mem_brk + incr) > mem_max_addr))
+    {
+        errno = ENOMEM;
+        fprintf(stderr, "ERROR: mem_sbrk failed. Ran out of memory...\n");
+        return (void *)-1;
     }
     mem_brk += incr;
     return (void *)old_brk;
 }
 
 /*
- * mem_heap_lo - return address of the first heap byte
+ * mem_heap_lo - 첫 번째 바이트의 주소를 반환하는 함수.
  */
 void *mem_heap_lo()
 {
     return (void *)mem_start_brk;
 }
 
-/* 
- * mem_heap_hi - return address of last heap byte
+/*
+ * mem_heap_hi - 마지막 바이트의 주소를 반환하는 함수.
  */
 void *mem_heap_hi()
 {
@@ -85,15 +84,15 @@ void *mem_heap_hi()
 }
 
 /*
- * mem_heapsize() - returns the heap size in bytes
+ * mem_heapsize() - 힙 크기를 반환하는 함수.
  */
-size_t mem_heapsize() 
+size_t mem_heapsize()
 {
     return (size_t)(mem_brk - mem_start_brk);
 }
 
 /*
- * mem_pagesize() - returns the page size of the system
+ * mem_pagesize() - 시스템의 페이지 크기를 반환하는 함수.
  */
 size_t mem_pagesize()
 {
