@@ -26,6 +26,8 @@ team_t team = {
     "",
     /* Second member's email address (leave blank if none) */
     ""};
+/* 연산 매크로 */
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
 
 /* 블록/정렬/청크 규칙 */
 #define W_SIZE 4
@@ -65,11 +67,16 @@ team_t team = {
 int mm_init(void);
 void *mm_malloc(size_t size);
 void *mm_realloc(void *b_ptr, size_t size);
+
+static void *find_fit(size_t asize);
+static int place(void *b_ptr, size_t asize);
+
 void mm_free(void *b_ptr);
 
 static void *extend_heap(size_t asize);
 static void *coalesce(void *b_ptr);
 
+static char *mm_p;
 /*
  * 메모리 할당기를 초기화 합니다.
  *
@@ -82,7 +89,7 @@ static void *coalesce(void *b_ptr);
 int mm_init(void)
 {
     // 16바이트 공간 매핑
-    char *mm_p = mem_sbrk(4 * W_SIZE);
+    mm_p = mem_sbrk(4 * W_SIZE);
     if (mm_p == (void *)-1)
         return -1;
 
@@ -122,6 +129,8 @@ void *mm_malloc(size_t size)
     size_t asize;
     size_t extend_size;
 
+    char *b_ptr;
+
     if (size == 0)
         return NULL;
 
@@ -130,6 +139,44 @@ void *mm_malloc(size_t size)
         asize = 2 * D_SIZE;
     else
         asize = ALIGN(size);
+
+    // 총 할당 크기에 맞는 공간 탐색
+    b_ptr = find_fit(asize);
+
+    // 탐색 성공 시 할당
+    if (b_ptr != NULL)
+    {
+        place(b_ptr, asize);
+        return b_ptr;
+    }
+    // 탐색 실패 시 힙 확장
+    else
+    {
+        // 최소는 4KiB
+        extend_size = MAX(asize, CHUNK_SIZE);
+
+        // 확장 실패 시 NULL 반환
+        if ((b_ptr = extend_heap(extend_size)) == NULL)
+            return NULL;
+
+        // 확장 성공 시 해당 위치에 할당하고 반환
+        place(b_ptr, asize);
+        return b_ptr;
+    }
+}
+
+/*
+ * TODO: FIRST FIT
+ */
+static void *find_fit(size_t asize)
+{
+}
+
+/*
+ * TODO: 실제 할당
+ */
+static int place(void *b_ptr, size_t asize)
+{
 }
 
 void *mm_realloc(void *b_ptr, size_t size)
@@ -168,7 +215,7 @@ void mm_free(void *b_ptr)
 static void *extend_heap(size_t asize)
 {
     // 정렬 조건 검사
-    if (asize % 8)
+    if (asize % 8 || asize < 16)
         return NULL;
 
     // brk 조정
