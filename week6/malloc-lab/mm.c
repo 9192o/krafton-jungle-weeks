@@ -1,9 +1,7 @@
 /*
- * malloc-lab 메모리 할당기 구현 과제입니다.
- *
- * 현재 버전은 CS:APP에서 구현되어있는
- * 헤더 4바이트, 푸터 4바이트의 블록 구조, 8바이트 정렬,
- * implicit free list 방식의 명시적 할당기입니다.
+ * Malloc Lab - CS:APP 기반의 묵시적 가용 리스트 할당기.
+ * 헤더와 푸터는 각각 4바이트이며, payload는 8바이트로 정렬합니다.
+ * 블록 크기는 헤더, payload, 패딩, 푸터를 포함한 전체 크기입니다.
  */
 
 #include <stdio.h>
@@ -29,7 +27,7 @@ team_t team = {
 /* 연산 매크로 */
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 
-/* 블록/정렬/청크 규칙 */
+/* 메타데이터 크기, 정렬 단위, 기본 힙 확장량 */
 #define W_SIZE 4
 #define D_SIZE 8
 #define CHUNK_SIZE (1 << 12)
@@ -41,88 +39,76 @@ team_t team = {
 #define ALLOCATED 1
 #define FREED 0
 
-/* 정렬 매크로 */
-#define ALIGN(size) (((size) + METADATA_SIZE + D_SIZE - 1) & ~0x7)
+/* payload 요청에 헤더와 푸터를 더하고, 전체 크기를 8의 배수로 올림 */
+#define ADJUST_SIZE(size) (((size) + METADATA_SIZE + D_SIZE - 1) & ~0x7)
 
-/* 메모리 주소에서 4바이트 메타데이터 값 추출/입력 */
+/* 주소 p의 4바이트 메타데이터 읽기와 쓰기 */
 #define GET(p) (*(unsigned int *)(p))
 #define SET(p, value) (*(unsigned int *)(p) = (value))
 
-/* 메타데이터(헤더/푸터) 값 생성/추출 */
+/* 전체 블록 크기와 할당 비트의 조합 및 추출 */
 #define SET_METADATA(asize, is_alloc) ((asize) | (is_alloc))
 
 #define GET_SIZE(p) (GET(p) & ~0x7)
 #define GET_IS_ALLOC(p) (GET(p) & 0x1)
 
-/* b_ptr는 블록의 payload 시작 주소입니다. */
+/* 아래 주소 매크로의 b_ptr는 블록의 payload 시작 주소 */
 
 /* 현재 블록의 헤더/푸터 주소 */
 #define HDR(b_ptr) ((char *)(b_ptr) - HDR_SIZE)
 #define FTR(b_ptr) ((char *)(b_ptr) + GET_SIZE(HDR(b_ptr)) - METADATA_SIZE)
 
-/* 다음/이전 블록의 payload 시작 주소*/
+/* 다음/이전 블록의 payload 시작 주소 */
 #define NEXT_BLK(b_ptr) ((char *)(b_ptr) + GET_SIZE(HDR(b_ptr)))
 #define PREV_BLK(b_ptr) ((char *)(b_ptr) - GET_SIZE(((char *)(b_ptr) - METADATA_SIZE)))
 
-int mm_init(void);
-void *mm_malloc(size_t size);
-void *mm_realloc(void *b_ptr, size_t size);
-
 static void *find_fit(size_t asize);
-static int place(void *b_ptr, size_t asize);
-
-void mm_free(void *b_ptr);
+static void place(void *b_ptr, size_t asize);
 
 static void *extend_heap(size_t asize);
 static void *coalesce(void *b_ptr);
 
-static char *mm_p;
+static char *mm_p; /* 첫 일반 블록의 payload를 가리키는 탐색 시작점 */
 /*
- * 메모리 할당기를 초기화 합니다.
- *
- * 1. 16바이트 공간 (패딩/프롤로그 헤더/프롤로그 푸터/에필로그 헤더) 을 확장합니다.
- * 2. 4바이트 패딩을 할당합니다.
- * 3. 프롤로그 블록 (asize = 8, is_alloc = 1) 을 할당합니다.
- * 4. 에필로그 블록 (asize = 0, is_alloc = 1) 을 할당합니다.
- * 5. 포인터를 프롤로그-에필로그 사이로 옮기고 힙을 4KB로 확장합니다.
+ * mm_init - 패딩과 경계 블록을 만들고 첫 가용 블록을 확보합니다.
+ * 초기 16바이트는 패딩, 프롤로그 헤더/푸터, 에필로그 헤더로 구성됩니다.
+ * 성공하면 0, 힙 확보에 실패하면 -1을 반환합니다.
  */
 int mm_init(void)
 {
-    // 16바이트 공간 매핑
+    /* 초기 경계 구조를 위한 힙 공간 확보 */
     mm_p = mem_sbrk(4 * W_SIZE);
     if (mm_p == (void *)-1)
         return -1;
 
-    // 패딩
+    /* 첫 payload의 8바이트 정렬을 위한 패딩 */
     SET(mm_p, 0);
 
-    // 프롤로그 헤더
+    /* 크기 8, 할당 상태인 프롤로그 헤더 */
     mm_p += HDR_SIZE;
     SET(mm_p, SET_METADATA(METADATA_SIZE, ALLOCATED));
 
-    // 프롤로그 푸터
+    /* 프롤로그 푸터 */
     mm_p += FTR_SIZE;
     SET(mm_p, SET_METADATA(METADATA_SIZE, ALLOCATED));
 
-    // 에필로그 헤더
+    /* 크기 0, 할당 상태인 에필로그 헤더 */
     mm_p += HDR_SIZE;
     SET(mm_p, SET_METADATA(0, ALLOCATED));
 
-    // 확장
+    /* 4 KiB를 추가해 첫 가용 블록 생성 */
     if (extend_heap(CHUNK_SIZE) == NULL)
         return -1;
 
+    /* 탐색 시작점을 첫 일반 블록의 payload로 이동 */
+    mm_p += HDR_SIZE;
     return 0;
 }
 
 /*
- * 메모리를 size 만큼 할당합니다.
- *
- * 1. size가 8바이트보다 작거나 같을 경우, 16바이트 블록을 할당합니다.
- * 2. 그 외에는 정렬 규칙에 따라 asize를 조정합니다.
- * 3. asize에 따라서, 적합한 메모리 영역을 찾습니다.
- * 4. 적합한 메모리 영역을 찾았을 경우, 그 주소에 할당합니다.
- * 5. 적합한 메모리 영역을 찾지 못했을 경우, 힙을 확장시킵니다.
+ * mm_malloc - size바이트의 payload를 담을 블록을 할당합니다.
+ * first-fit으로 가용 블록을 찾고, 없으면 힙을 확장합니다.
+ * size가 0이거나 힙 확장에 실패하면 NULL을 반환합니다.
  */
 void *mm_malloc(size_t size)
 {
@@ -134,134 +120,181 @@ void *mm_malloc(size_t size)
     if (size == 0)
         return NULL;
 
-    // 최소 블록 크기
+    /* 메타데이터와 정렬을 반영하며, 최소 블록 크기는 16바이트 */
     if (size <= D_SIZE)
         asize = 2 * D_SIZE;
     else
-        asize = ALIGN(size);
+        asize = ADJUST_SIZE(size);
 
-    // 총 할당 크기에 맞는 공간 탐색
+    /* 전체 블록 크기 asize를 수용하는 가용 블록 탐색 */
     b_ptr = find_fit(asize);
 
-    // 탐색 성공 시 할당
+    /* 찾은 가용 블록에 배치 */
     if (b_ptr != NULL)
     {
         place(b_ptr, asize);
         return b_ptr;
     }
-    // 탐색 실패 시 힙 확장
+    /* 맞는 블록이 없으면 힙 확장 */
     else
     {
-        // 최소는 4KiB
+        /* 필요한 블록 크기와 4 KiB 중 큰 값만큼 확장 */
         extend_size = MAX(asize, CHUNK_SIZE);
 
-        // 확장 실패 시 NULL 반환
+        /* 힙 확장 실패 */
         if ((b_ptr = extend_heap(extend_size)) == NULL)
             return NULL;
 
-        // 확장 성공 시 해당 위치에 할당하고 반환
+        /* 확장과 병합으로 확보한 가용 블록에 배치 */
         place(b_ptr, asize);
         return b_ptr;
     }
 }
 
 /*
- * TODO: FIRST FIT
+ * find_fit - asize 이상인 첫 가용 블록의 payload 주소를 반환합니다.
+ * 크기 0인 에필로그까지 탐색하며, 적합한 블록이 없으면 NULL을 반환합니다.
  */
 static void *find_fit(size_t asize)
 {
+    char *cur = mm_p;
+    while (GET_SIZE(HDR(cur)))
+    {
+        /* 할당되지 않았고 크기가 충분한 첫 블록 선택 */
+        if (!GET_IS_ALLOC(HDR(cur)) && asize <= GET_SIZE(HDR(cur)))
+            return cur;
+        cur = NEXT_BLK(cur);
+    }
+
+    /* 에필로그까지 적합한 블록이 없음 */
+    return NULL;
 }
 
 /*
- * TODO: 실제 할당
+ * place - 선택한 가용 블록에 asize 크기의 할당 블록을 배치합니다.
+ * 나머지가 16바이트 이상이면 분할하고, 작으면 원래 블록 전체를 할당합니다.
+ * b_ptr는 크기가 asize 이상인 가용 블록의 payload 주소여야 합니다.
  */
-static int place(void *b_ptr, size_t asize)
+static void place(void *b_ptr, size_t asize)
 {
+    size_t original_size = GET_SIZE(HDR(b_ptr));
+    size_t splited_size = original_size - asize;
+
+    /* 나머지를 독립된 일반 블록으로 만들 수 없으면 전체를 할당 */
+    if (splited_size < 16)
+    {
+        /* 다음 블록의 위치를 보존하도록 원래 크기 유지 */
+        SET(HDR(b_ptr), SET_METADATA(original_size, ALLOCATED));
+        SET(FTR(b_ptr), SET_METADATA(original_size, ALLOCATED));
+    }
+    /* 할당 블록과 나머지 가용 블록으로 분할 */
+    else
+    {
+        /* 앞 헤더를 갱신한 뒤, 새 크기로 푸터 위치 계산 */
+        SET(HDR(b_ptr), SET_METADATA(asize, ALLOCATED));
+        SET(FTR(b_ptr), SET_METADATA(asize, ALLOCATED));
+
+        /* 변경된 앞 블록 크기를 기준으로 나머지 헤더와 푸터 기록 */
+        SET(HDR(NEXT_BLK(b_ptr)), SET_METADATA(splited_size, FREED));
+        SET(FTR(NEXT_BLK(b_ptr)), SET_METADATA(splited_size, FREED));
+    }
 }
 
+/*
+ * mm_realloc - 블록의 payload 크기를 변경합니다.
+ * TODO: 재할당 구현.
+ */
 void *mm_realloc(void *b_ptr, size_t size)
 {
+    /* 기존 포인터가 NULL일시 */
+    if (b_ptr == NULL)
+    {
+        /* 새 할당 크기가 0일시 */
+        if (!size)
+        {
+            mm_free(b_ptr);
+            return NULL;
+        }
+        b_ptr = mm_malloc(size);
+
+        /* 할당 실패 시*/
+        if (b_ptr == NULL)
+            return NULL;
+
+        return b_ptr;
+    }
+    /* 재할당 시 */
 }
 
 /*
- * 블록을 해제합니다.
- *
- * 1. 블록 사이즈를 저장합니다.
- * 2. 헤더/푸터에서 할당 여부 영역을 FREED로 변경합니다.
- * 3. 현재 위치에서 병합을 시도합니다.
+ * mm_free - 할당 블록을 가용 상태로 바꾸고 인접 가용 블록과 병합합니다.
+ * b_ptr는 유효한 할당 블록의 payload 주소여야 합니다.
  */
 void mm_free(void *b_ptr)
 {
-    // 블록 크기 저장
+    /* 전체 블록 크기 확인 */
     size_t asize = GET_SIZE(HDR(b_ptr));
 
-    // 헤더/푸터 갱신
+    /* 블록 크기를 유지하고 할당 비트만 가용 상태로 변경 */
     SET(HDR(b_ptr), SET_METADATA(asize, FREED));
     SET(FTR(b_ptr), SET_METADATA(asize, FREED));
 
-    // 병합 시도
+    /* 인접 가용 블록과 즉시 병합 */
     coalesce(b_ptr);
 }
 
 /*
- * 크기를 bytes로 받아 힙을 확장합니다.
- * 8바이트 정렬 조건 불만족시 Size를 늘리지 않고 종료합니다.
- *
- * 1. brk를 할당될 크기만큼 뒤로 조정합니다.
- * 2. 에필로그 블록을 해제하고, 새로운 헤더와 푸터를 세팅합니다.
- * 3. 에필로그 블록을 새로 할당합니다.
- * 4. 현재 위치에서 병합을 시도합니다.
+ * extend_heap - asize바이트만큼 힙을 확장하고 가용 블록을 만듭니다.
+ * asize는 16바이트 이상인 8의 배수여야 하며, 함수에서 크기를 올림하지 않습니다.
+ * 병합 결과의 payload 주소를 반환하며, 조건 불만족 또는 확장 실패 시 NULL입니다.
  */
 static void *extend_heap(size_t asize)
 {
-    // 정렬 조건 검사
+    /* 확장량의 정렬과 최소 블록 크기 검사 */
     if (asize % 8 || asize < 16)
         return NULL;
 
-    // brk 조정
+    /* 힙을 확장하고 이전 brk를 새 블록의 payload 주소로 사용 */
     char *b_ptr = mem_sbrk(asize);
     if (b_ptr == (void *)-1)
         return NULL;
 
-    // 에필로그 블록을, 새로운 블록으로 세팅
+    /* 기존 에필로그 헤더를 가용 블록 헤더로 덮어쓰고 새 푸터 기록 */
     SET(HDR(b_ptr), SET_METADATA(asize, FREED));
     SET(FTR(b_ptr), SET_METADATA(asize, FREED));
 
-    // 새 에필로그 블록 할당
+    /* 확장된 힙 끝에 새 에필로그 헤더 기록 */
     SET(HDR(NEXT_BLK(b_ptr)), SET_METADATA(0, ALLOCATED));
 
-    // 병합 시도
+    /* 이전 블록이 가용 상태라면 병합 */
     return coalesce(b_ptr);
 }
 
 /*
- * 현재 블록 포인터에서 병합을 시도합니다.
- * 반환값은 "첫" free 블록을 가리키는 포인터입니다.
- *
- * 1. 전 블록의 할당 상태와 후 블록의 할당 상태를 기반으로
- * 2. 4가지 상태로 분기합니다.
- * 3. 각 분기에 따라 다르게 병합하고, 블록 포인터를 반환합니다.
+ * coalesce - 현재 가용 블록을 인접한 가용 블록과 병합합니다.
+ * 이전 블록의 푸터와 다음 블록의 헤더로 할당 상태를 확인합니다.
+ * 병합 결과 블록의 payload 시작 주소를 반환합니다.
  */
 static void *coalesce(void *b_ptr)
 {
-    // 전/후 블록 할당 상태 추출, 현재 free되는 size 추출
+    /* 이웃 블록의 할당 상태와 현재 블록의 전체 크기 확인 */
     size_t prev_alloc = GET_IS_ALLOC(FTR(PREV_BLK(b_ptr)));
     size_t next_alloc = GET_IS_ALLOC(HDR(NEXT_BLK(b_ptr)));
     size_t size = GET_SIZE(HDR(b_ptr));
 
-    // 1. 전 할당/후 할당
+    /* 이전과 다음이 모두 할당 상태: 병합하지 않음 */
     if (prev_alloc && next_alloc)
     {
         return b_ptr;
     }
-    // 2. 전 할당/후 해제
+    /* 다음 블록만 가용 상태: 오른쪽으로 병합 */
     else if (prev_alloc && !next_alloc)
     {
         size += GET_SIZE(HDR(NEXT_BLK(b_ptr)));
         SET(HDR(b_ptr), SET_METADATA(size, FREED));
         SET(FTR(b_ptr), SET_METADATA(size, FREED));
     }
-    // 3. 전 해제/후 할당
+    /* 이전 블록만 가용 상태: 왼쪽으로 병합 */
     else if (!prev_alloc && next_alloc)
     {
         size += GET_SIZE(FTR(PREV_BLK(b_ptr)));
@@ -271,7 +304,7 @@ static void *coalesce(void *b_ptr)
 
         b_ptr = PREV_BLK(b_ptr);
     }
-    // 4. 전 해제/후 해제
+    /* 양쪽 모두 가용 상태: 세 블록을 병합 */
     else
     {
         size += GET_SIZE(HDR(PREV_BLK(b_ptr))) + GET_SIZE(FTR(NEXT_BLK(b_ptr)));
