@@ -21,11 +21,12 @@ team_t team = {
     /* First member's email address */
     "woong501298@gmail.com",
     /* Second member's full name (leave blank if none) */
-    "",
+    "Joung Seong Young",
     /* Second member's email address (leave blank if none) */
-    ""};
+    "sam12057@gmail.com"};
 /* 연산 매크로 */
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
 
 /* 메타데이터 크기, 정렬 단위, 기본 힙 확장량 */
 #define W_SIZE 4
@@ -209,21 +210,41 @@ void *mm_realloc(void *b_ptr, size_t size)
     /* 기존 포인터가 NULL일시 */
     if (b_ptr == NULL)
     {
-        /* 새 할당 크기가 0일시 */
-        if (!size)
-        {
-            mm_free(b_ptr);
-            return NULL;
-        }
+        /* 새 할당*/
         b_ptr = mm_malloc(size);
 
-        /* 할당 실패 시*/
+        /* 할당 실패/새 할당 크기가 0일 시*/
         if (b_ptr == NULL)
             return NULL;
 
         return b_ptr;
     }
     /* 재할당 시 */
+    else
+    {
+        /* 새 할당 크기가 0일 시 */
+        if (!size)
+        {
+            mm_free(b_ptr);
+            return NULL;
+        }
+        /* 새 블록 할당 시도*/
+        void *new_ptr = mm_malloc(size);
+        if (new_ptr == NULL)
+            return NULL;
+
+        /* 기존 블록의 payload 용량 확인 */
+        size_t payload_size = GET_SIZE(HDR(b_ptr)) - METADATA_SIZE;
+
+        /* 기존 payload 용량과 새 요청 크기 중 작은 만큼 복사 */
+        size_t copy_size = MIN(payload_size, size);
+        memcpy(new_ptr, b_ptr, copy_size);
+
+        /* 기존 블록 반환 */
+        mm_free(b_ptr);
+
+        return new_ptr;
+    }
 }
 
 /*
