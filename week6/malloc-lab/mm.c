@@ -265,6 +265,34 @@ void *mm_realloc(void *b_ptr, size_t size)
     else if (realloc_size > original_size)
     {
         /* TODO: 주변이 가용 블록이고, 현재 블록 크기와 합쳤을 때 충분하다면 제자리 확장 */
+        size_t rblock_size = GET_SIZE(NEXT_HDR(b_ptr));
+        /* 다음 블록만 가용 상태: 오른쪽 블록 크기와 합쳐 비교 */
+        if (!GET_IS_ALLOC(NEXT_HDR(b_ptr)) && realloc_size <= original_size + rblock_size)
+        {
+            /* 나머지를 독립된 일반 블록으로 만들 수 없으면 전체를 할당 */
+            if (original_size + rblock_size - realloc_size < 16)
+            {
+                SET(HDR(b_ptr), SET_METADATA(original_size + rblock_size, ALLOCATED));
+                SET(FTR(b_ptr), SET_METADATA(original_size + rblock_size, ALLOCATED));
+            }
+            /* 할당 블록과 나머지 가용 블록으로 분할 */
+            else
+            {
+                /* 앞 헤더를 갱신한 뒤, 새 크기로 푸터 위치 계산 */
+                SET(HDR(b_ptr), SET_METADATA(realloc_size, ALLOCATED));
+                SET(FTR(b_ptr), SET_METADATA(realloc_size, ALLOCATED));
+
+                /* 변경된 앞 블록 크기를 기준으로 나머지 헤더와 푸터 기록 */
+                SET(HDR(NEXT_BLK(b_ptr)), SET_METADATA(original_size + rblock_size - realloc_size, FREED));
+                SET(FTR(NEXT_BLK(b_ptr)), SET_METADATA(original_size + rblock_size - realloc_size, FREED));
+
+                coalesce(NEXT_BLK(b_ptr));
+            }
+            return b_ptr;
+        }
+        /* TODO: 이전 블록만 가용 상태: 왼쪽 블록 크기와 합쳐 비교 */
+
+        /* TODO: 양쪽 모두 가용 상태: 세 블록 크기를 합쳐 비교 */
 
         /* 제자리 할당 불가 시 새 블록 할당 시도*/
         void *new_ptr = mm_malloc(size);
