@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
+#include <limits.h>
 
 #include "mm.h"
 #include "memlib.h"
@@ -28,7 +29,7 @@ team_t team = {
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 
-/* 메타데이터 크기, 정렬 단위, 기본 힙 확장량 */
+/* 메타데이터 크기, 정렬 단위, 기본 힙 확장량, 최대 할당 크기 */
 #define W_SIZE 4
 #define D_SIZE 8
 #define CHUNK_SIZE (1 << 12)
@@ -39,6 +40,8 @@ team_t team = {
 
 #define ALLOCATED 1
 #define FREED 0
+
+#define MAX_SIZE (size_t)-1
 
 /* payload 요청에 헤더와 푸터를 더하고, 전체 크기를 8의 배수로 올림 */
 #define ADJUST_SIZE(size) (((size) + METADATA_SIZE + D_SIZE - 1) & ~0x7)
@@ -62,6 +65,14 @@ team_t team = {
 /* 다음/이전 블록의 payload 시작 주소 */
 #define NEXT_BLK(b_ptr) ((char *)(b_ptr) + GET_SIZE(HDR(b_ptr)))
 #define PREV_BLK(b_ptr) ((char *)(b_ptr) - GET_SIZE(((char *)(b_ptr) - METADATA_SIZE)))
+
+/* 이전 블록의 헤더/푸터 주소 */
+#define PREV_HDR(b_ptr) (HDR(PREV_BLK(b_ptr)))
+#define PREV_FTR(b_ptr) ((char *)(b_ptr) - METADATA_SIZE)
+
+/* 다음 블록의 헤더 주소 */
+#define NEXT_HDR(b_ptr) (HDR(NEXT_BLK(b_ptr)))
+#define NEXT_FTR(b_ptr) (FTR(NEXT_BLK(b_ptr)))
 
 static void *find_fit(size_t asize);
 static void place(void *b_ptr, size_t asize);
@@ -118,14 +129,12 @@ void *mm_malloc(size_t size)
 
     char *b_ptr;
 
-    if (size == 0)
+    /* 의미 없는 할당/확보 불가능한 크기 할당 요청을 거절 */
+    if (size == 0 || size > MAX_SIZE - 16)
         return NULL;
 
     /* 메타데이터와 정렬을 반영하며, 최소 블록 크기는 16바이트 */
-    if (size <= D_SIZE)
-        asize = 2 * D_SIZE;
-    else
-        asize = ADJUST_SIZE(size);
+    asize = ADJUST_SIZE(size);
 
     /* 전체 블록 크기 asize를 수용하는 가용 블록 탐색 */
     b_ptr = find_fit(asize);
@@ -203,41 +212,67 @@ static void place(void *b_ptr, size_t asize)
 
 /*
  * mm_realloc - 블록의 payload 크기를 변경합니다.
- * TODO: 재할당 구현.
+ * 새 블록에 기존 payload 용량과 새 요청 크기 중 작은 만큼 복사하고 기존 블록을 해제합니다.
+ * b_ptr가 NULL이면 mm_malloc(size)를 호출하고, size가 0이면 기존 블록을 해제합니다.
+ * 새 할당에 실패하면 기존 블록과 데이터를 유지하고 NULL을 반환합니다.
+ *
+ * TODO: 축소나 제자리 확장도 새 할당/복사를 수행합니다. 필요하면 제자리 재할당으로 개선합니다.
  */
 void *mm_realloc(void *b_ptr, size_t size)
 {
     /* 기존 포인터가 NULL일시 */
     if (b_ptr == NULL)
+        return mm_malloc(size);
+
+    /* 새 할당 크기가 0일 시 */
+    if (!size)
     {
-        /* 새 할당*/
-        b_ptr = mm_malloc(size);
-
-        /* 할당 실패/새 할당 크기가 0일 시*/
-        if (b_ptr == NULL)
-            return NULL;
-
-        return b_ptr;
+        mm_free(b_ptr);
+        return NULL;
     }
-    /* 재할당 시 */
-    else
+
+    /* 확보 불가능한 크기 할당 요청을 거절 */
+    if (size > MAX_SIZE - 16)
+        return NULL;
+
+    size_t original_size = GET_SIZE(HDR(b_ptr));
+    size_t realloc_size = ADJUST_SIZE(size);
+
+    /* 새 할당 크기가 기존 payload 용량보다 작을 때 (제자리 축소) */
+    if (realloc_size <= original_size)
     {
-        /* 새 할당 크기가 0일 시 */
-        if (!size)
+        /* 분할 후 남는 공간이 16바이트 이상이면 분할*/
+        if (original_size - realloc_size >= 16)
         {
-            mm_free(b_ptr);
-            return NULL;
+            /* 원본 블록 헤더/푸터 수정 */
+            SET(HDR(b_ptr), SET_METADATA(realloc_size, ALLOCATED));
+            SET(FTR(b_ptr), SET_METADATA(realloc_size, ALLOCATED));
+
+            /* 다음 블록 (가용 블록) 헤더/푸터 수정 */
+            SET(NEXT_HDR(b_ptr), SET_METADATA(original_size - realloc_size, FREED));
+            SET(NEXT_FTR(b_ptr), SET_METADATA(original_size - realloc_size, FREED));
+
+            /* 분할 될 블록 병합 시도 */
+            coalesce(NEXT_BLK(b_ptr));
+
+            return b_ptr;
         }
-        /* 새 블록 할당 시도*/
+        /* 16바이트 미만일시 분할하지 않고 할당 */
+        else
+            return b_ptr;
+    }
+    /* 새 할당 크기가 기존 payload 용량보다 클 때 (제자리 확장/할당 후 복사)*/
+    else if (realloc_size > original_size)
+    {
+        /* TODO: 주변이 가용 블록이고, 현재 블록 크기와 합쳤을 때 충분하다면 제자리 확장 */
+
+        /* 제자리 할당 불가 시 새 블록 할당 시도*/
         void *new_ptr = mm_malloc(size);
         if (new_ptr == NULL)
             return NULL;
 
-        /* 기존 블록의 payload 용량 확인 */
-        size_t payload_size = GET_SIZE(HDR(b_ptr)) - METADATA_SIZE;
-
         /* 기존 payload 용량과 새 요청 크기 중 작은 만큼 복사 */
-        size_t copy_size = MIN(payload_size, size);
+        size_t copy_size = MIN(original_size - METADATA_SIZE, size);
         memcpy(new_ptr, b_ptr, copy_size);
 
         /* 기존 블록 반환 */
@@ -245,6 +280,9 @@ void *mm_realloc(void *b_ptr, size_t size)
 
         return new_ptr;
     }
+    /* 새 할당 크기가 기존 payload 용량과 같을 때 */
+    else
+        return b_ptr;
 }
 
 /*
@@ -253,6 +291,9 @@ void *mm_realloc(void *b_ptr, size_t size)
  */
 void mm_free(void *b_ptr)
 {
+    /* 잘못된 포인터 검사 */
+    if (b_ptr == NULL)
+        return;
     /* 전체 블록 크기 확인 */
     size_t asize = GET_SIZE(HDR(b_ptr));
 
@@ -268,11 +309,17 @@ void mm_free(void *b_ptr)
  * extend_heap - asize바이트만큼 힙을 확장하고 가용 블록을 만듭니다.
  * asize는 16바이트 이상인 8의 배수여야 하며, 함수에서 크기를 올림하지 않습니다.
  * 병합 결과의 payload 주소를 반환하며, 조건 불만족 또는 확장 실패 시 NULL입니다.
+ *
+ * TODO: 힙의 끝에 가용 블록이 있는지 확인하고, 필요한 크기를 계산하여 효율적으로 확장하는 기능 구현
  */
 static void *extend_heap(size_t asize)
 {
-    /* 확장량의 정렬과 최소 블록 크기 검사 */
+    /* 확장량의 정렬, 최소 블록 크기 */
     if (asize % 8 || asize < 16)
+        return NULL;
+
+    /* 타입 변환 검사 */
+    if (asize > (size_t)INT_MAX)
         return NULL;
 
     /* 힙을 확장하고 이전 brk를 새 블록의 payload 주소로 사용 */
@@ -299,8 +346,8 @@ static void *extend_heap(size_t asize)
 static void *coalesce(void *b_ptr)
 {
     /* 이웃 블록의 할당 상태와 현재 블록의 전체 크기 확인 */
-    size_t prev_alloc = GET_IS_ALLOC(FTR(PREV_BLK(b_ptr)));
-    size_t next_alloc = GET_IS_ALLOC(HDR(NEXT_BLK(b_ptr)));
+    size_t prev_alloc = GET_IS_ALLOC(PREV_FTR(b_ptr));
+    size_t next_alloc = GET_IS_ALLOC(NEXT_HDR(b_ptr));
     size_t size = GET_SIZE(HDR(b_ptr));
 
     /* 이전과 다음이 모두 할당 상태: 병합하지 않음 */
