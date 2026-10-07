@@ -207,6 +207,9 @@ static void place(void *b_ptr, size_t asize)
         /* 변경된 앞 블록 크기를 기준으로 나머지 헤더와 푸터 기록 */
         SET(HDR(NEXT_BLK(b_ptr)), SET_METADATA(splited_size, FREED));
         SET(FTR(NEXT_BLK(b_ptr)), SET_METADATA(splited_size, FREED));
+
+        /* 분할 후 가용 블록 합병 시도 */
+        coalesce(NEXT_BLK(b_ptr));
     }
 }
 
@@ -238,75 +241,80 @@ void *mm_realloc(void *b_ptr, size_t size)
     size_t original_size = GET_SIZE(HDR(b_ptr));
     size_t realloc_size = ADJUST_SIZE(size);
 
-    /* 새 할당 크기가 기존 payload 용량보다 작을 때 (제자리 축소) */
+    /* 새 블록 크기가 기존 블록 크기 이하일 때 (제자리 축소) */
     if (realloc_size <= original_size)
     {
-        /* 분할 후 남는 공간이 16바이트 이상이면 분할*/
-        if (original_size - realloc_size >= 16)
-        {
-            /* 원본 블록 헤더/푸터 수정 */
-            SET(HDR(b_ptr), SET_METADATA(realloc_size, ALLOCATED));
-            SET(FTR(b_ptr), SET_METADATA(realloc_size, ALLOCATED));
-
-            /* 다음 블록 (가용 블록) 헤더/푸터 수정 */
-            SET(NEXT_HDR(b_ptr), SET_METADATA(original_size - realloc_size, FREED));
-            SET(NEXT_FTR(b_ptr), SET_METADATA(original_size - realloc_size, FREED));
-
-            /* 분할 될 블록 병합 시도 */
-            coalesce(NEXT_BLK(b_ptr));
-
-            return b_ptr;
-        }
-        /* 16바이트 미만일시 분할하지 않고 할당 */
-        else
-            return b_ptr;
+        place(b_ptr, realloc_size);
+        return b_ptr;
     }
-    /* 새 할당 크기가 기존 payload 용량보다 클 때 (제자리 확장/할당 후 복사)*/
+    /* 새 블록 크기가 기존 블록 크기보다 클 때 (제자리 확장/할당 후 복사) */
     else if (realloc_size > original_size)
     {
-        /* TODO: 주변이 가용 블록이고, 현재 블록 크기와 합쳤을 때 충분하다면 제자리 확장 */
         size_t rblock_size = GET_SIZE(NEXT_HDR(b_ptr));
-        /* 다음 블록만 가용 상태: 오른쪽 블록 크기와 합쳐 비교 */
+        size_t lblock_size = GET_SIZE(PREV_FTR(b_ptr));
+        /* 이후 블록 가용 상태: 합친 크기가 충분하면 제자리 확장 */
         if (!GET_IS_ALLOC(NEXT_HDR(b_ptr)) && realloc_size <= original_size + rblock_size)
         {
-            /* 나머지를 독립된 일반 블록으로 만들 수 없으면 전체를 할당 */
-            if (original_size + rblock_size - realloc_size < 16)
-            {
-                SET(HDR(b_ptr), SET_METADATA(original_size + rblock_size, ALLOCATED));
-                SET(FTR(b_ptr), SET_METADATA(original_size + rblock_size, ALLOCATED));
-            }
-            /* 할당 블록과 나머지 가용 블록으로 분할 */
-            else
-            {
-                /* 앞 헤더를 갱신한 뒤, 새 크기로 푸터 위치 계산 */
-                SET(HDR(b_ptr), SET_METADATA(realloc_size, ALLOCATED));
-                SET(FTR(b_ptr), SET_METADATA(realloc_size, ALLOCATED));
+            size_t combined_size = original_size + rblock_size;
 
-                /* 변경된 앞 블록 크기를 기준으로 나머지 헤더와 푸터 기록 */
-                SET(HDR(NEXT_BLK(b_ptr)), SET_METADATA(original_size + rblock_size - realloc_size, FREED));
-                SET(FTR(NEXT_BLK(b_ptr)), SET_METADATA(original_size + rblock_size - realloc_size, FREED));
+            /* 오른쪽 가용 블록을 포함한 전체 크기를 먼저 기록 */
+            SET(HDR(b_ptr), SET_METADATA(combined_size, ALLOCATED));
+            SET(FTR(b_ptr), SET_METADATA(combined_size, ALLOCATED));
 
-                coalesce(NEXT_BLK(b_ptr));
-            }
+            /* 분할과 나머지 가용 블록 병합은 place에서 처리 */
+            place(b_ptr, realloc_size);
             return b_ptr;
         }
-        /* TODO: 이전 블록만 가용 상태: 왼쪽 블록 크기와 합쳐 비교 */
+        /* 이전 블록 가용 상태: 왼쪽 블록 크기와 합쳐 비교 */
+        else if (!GET_IS_ALLOC(PREV_HDR(b_ptr)) && realloc_size <= original_size + lblock_size)
+        {
+            size_t combined_size = original_size + lblock_size;
+            size_t copy_size = MIN(original_size - METADATA_SIZE, size);
 
+            /* 왼쪽 블록으로 payload를 이동 */
+            b_ptr = memmove(PREV_BLK(b_ptr), b_ptr, copy_size);
+
+            /* 새 시작 주소에 전체 크기 기록 */
+            SET(HDR(b_ptr), SET_METADATA(combined_size, ALLOCATED));
+            SET(FTR(b_ptr), SET_METADATA(combined_size, ALLOCATED));
+
+            /* 분할과 나머지 가용 블록 병합은 place에서 처리 */
+            place(b_ptr, realloc_size);
+            return b_ptr;
+        }
         /* TODO: 양쪽 모두 가용 상태: 세 블록 크기를 합쳐 비교 */
+        else if (!GET_IS_ALLOC(PREV_HDR(b_ptr)) && !GET_IS_ALLOC(NEXT_HDR(b_ptr)) && realloc_size <= original_size + lblock_size + rblock_size)
+        {
+            size_t combined_size = original_size + lblock_size + rblock_size;
+            size_t copy_size = MIN(original_size - METADATA_SIZE, size);
 
-        /* 제자리 할당 불가 시 새 블록 할당 시도*/
-        void *new_ptr = mm_malloc(size);
-        if (new_ptr == NULL)
-            return NULL;
+            /* 왼쪽 블록으로 payload 이동 */
+            b_ptr = memmove(PREV_BLK(b_ptr), b_ptr, copy_size);
 
-        /* 기존 payload 용량과 새 요청 크기 중 작은 만큼 복사 */
-        size_t copy_size = MIN(original_size - METADATA_SIZE, size);
-        memcpy(new_ptr, b_ptr, copy_size);
+            /* 새 시작 주소에 전체 크기 기록 */
+            SET(HDR(b_ptr), SET_METADATA(combined_size, ALLOCATED));
+            SET(FTR(b_ptr), SET_METADATA(combined_size, ALLOCATED));
 
-        /* 기존 블록 반환 */
-        mm_free(b_ptr);
+            /* 분할과 나머지 가용 블록 병합은 place에서 처리 */
+            place(b_ptr, realloc_size);
+            return b_ptr;
+        }
+        else
+        {
+            /* 제자리 할당 불가 시 새 블록 할당 시도*/
+            void *new_ptr = mm_malloc(size);
+            if (new_ptr == NULL)
+                return NULL;
 
-        return new_ptr;
+            /* 기존 payload 용량과 새 요청 크기 중 작은 만큼 복사 */
+            size_t copy_size = MIN(original_size - METADATA_SIZE, size);
+            memcpy(new_ptr, b_ptr, copy_size);
+
+            /* 기존 블록 반환 */
+            mm_free(b_ptr);
+
+            return new_ptr;
+        }
     }
     /* 새 할당 크기가 기존 payload 용량과 같을 때 */
     else
