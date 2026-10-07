@@ -81,6 +81,7 @@ static void *extend_heap(size_t asize);
 static void *coalesce(void *b_ptr);
 
 static char *mm_p; /* 첫 일반 블록의 payload를 가리키는 탐색 시작점 */
+
 /*
  * mm_init - 패딩과 경계 블록을 만들고 첫 가용 블록을 확보합니다.
  * 초기 16바이트는 패딩, 프롤로그 헤더/푸터, 에필로그 헤더로 구성됩니다.
@@ -248,7 +249,7 @@ void *mm_realloc(void *b_ptr, size_t size)
         return b_ptr;
     }
     /* 새 블록 크기가 기존 블록 크기보다 클 때 (제자리 확장/할당 후 복사) */
-    else if (realloc_size > original_size)
+    else
     {
         size_t rblock_size = GET_SIZE(NEXT_HDR(b_ptr));
         size_t lblock_size = GET_SIZE(PREV_FTR(b_ptr));
@@ -316,9 +317,6 @@ void *mm_realloc(void *b_ptr, size_t size)
             return new_ptr;
         }
     }
-    /* 새 할당 크기가 기존 payload 용량과 같을 때 */
-    else
-        return b_ptr;
 }
 
 /*
@@ -357,6 +355,11 @@ static void *extend_heap(size_t asize)
     /* 타입 변환 검사 */
     if (asize > (size_t)INT_MAX)
         return NULL;
+
+    /* 힙 끝에 가용 블록 존재 시 사이즈 계산 */
+    char *heap_brk = (char *)mem_heap_hi() + 1;
+    if (!GET_IS_ALLOC(PREV_FTR(heap_brk)))
+        asize = ADJUST_SIZE(asize - GET_SIZE(PREV_FTR(heap_brk)));
 
     /* 힙을 확장하고 이전 brk를 새 블록의 payload 주소로 사용 */
     char *b_ptr = mem_sbrk(asize);
